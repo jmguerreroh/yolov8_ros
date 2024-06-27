@@ -53,6 +53,7 @@ class Yolov8Node(CascadeLifecycleNode):
     def __init__(self) -> None:
         super().__init__("yolov8_node")
         self._pub: Optional[Publisher] = None
+        self._sub = None
         self.first_configuration = True
 
         self.declare_parameter("model", "yolov8m.pt")
@@ -127,7 +128,9 @@ class Yolov8Node(CascadeLifecycleNode):
 
         self.destroy_publisher(self._pub)
         self.destroy_service(self._srv)
-        self.destroy_subscription(self._sub)
+
+        if self._sub is not None:
+            self.destroy_subscription(self._sub)
 
         return super().on_cleanup(state)
 
@@ -136,7 +139,8 @@ class Yolov8Node(CascadeLifecycleNode):
         self.destroy_publisher(self._pub)
         self.destroy_service(self._srv)
         self.destroy_service(self._change_model_srv)
-        self.destroy_subscription(self._sub)
+        if self._sub is not None:
+            self.destroy_subscription(self._sub)
 
         return super().on_shutdown(state)
 
@@ -295,6 +299,11 @@ class Yolov8Node(CascadeLifecycleNode):
         res: ChangeModel.Response
     ) -> ChangeModel.Response:
         try:
+            if req.model == self.model:
+                res.success = True
+                res.message = f'Model already set to {req.model}.'
+                return res
+
             self.get_logger().info(f'Changing model to {req.model}...')
            
             self.on_deactivate(State("active", 3))
